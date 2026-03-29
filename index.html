@@ -1,0 +1,120 @@
+<DOCTYPE html> 
+<html lang="zh-CN"> 
+<head> 
+    <meta charset="UTF-8"> 
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"> 
+    <title>Instant-HTML 工具箱导航</title> 
+    <style> 
+        :root { --primary-color: #4a90e2; --bg-color: #f5f7fa; --card-bg: #ffffff; --text-color: #333333; --shadow: 0 4px 6px rgba(0,0,0,0.1); } 
+        body { font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif; background-color: var(--bg-color); color: var(--text-color); margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; } 
+        header { background-color: var(--card-bg); padding: 0.8rem 1.5rem; box-shadow: var(--shadow); display: flex; justify-content: space-between; align-items: center; z-index: 100; border-bottom: 1px solid #eee; } 
+        .logo-area { display: flex; align-items: center; gap: 1rem; } 
+        h1 { margin: 0; font-size: 1.3rem; color: var(--primary-color); } 
+        #toggle-btn { background: #eee; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 14px; transition: background 0.3s; } 
+        #toggle-btn:hover { background: #ddd; } 
+        main { display: flex; flex: 1; overflow: hidden; position: relative; } 
+        #sidebar { width: 280px; background-color: var(--card-bg); border-right: 1px solid #e0e0e0; overflow-y: auto; padding: 1rem; transition: transform 0.3s ease, margin-left 0.3s ease; flex-shrink: 0; } 
+        #sidebar.hidden { margin-left: -280px; transform: translateX(-100%); } 
+        #content { flex: 1; padding: 0; background-color: #f0f2f5; display: flex; flex-direction: column; position: relative; } 
+        iframe { width: 100%; height: 100%; border: none; background-color: white; } 
+        .folder-group { margin-bottom: 1.2rem; } 
+        .folder-name { font-weight: bold; color: #888; font-size: 0.8rem; text-transform: uppercase; margin-bottom: 0.5rem; padding-bottom: 3px; border-bottom: 1px solid #f0f0f0; letter-spacing: 1px; } 
+        .tool-link { display: block; padding: 8px 12px; margin-bottom: 4px; text-decoration: none; color: var(--text-color); border-radius: 6px; transition: all 0.2s; font-size: 0.9rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } 
+        .tool-link:hover { background-color: #f0f7ff; color: var(--primary-color); } 
+        .tool-link.active { background-color: var(--primary-color); color: white; box-shadow: 0 2px 4px rgba(74,144,226,0.3); } 
+        .search-box { width: 100%; padding: 8px 12px; margin-bottom: 1rem; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; outline: none; transition: border-color 0.3s; } 
+        .search-box:focus { border-color: var(--primary-color); } 
+        .empty-state { display: flex; justify-content: center; align-items: center; height: 100%; flex-direction: column; color: #aaa; text-align: center; } 
+        .empty-state h2 { margin-bottom: 10px; color: #888; } 
+    </style> 
+</head> 
+<body> 
+    <header> 
+        <div class="logo-area"> 
+            <button id="toggle-btn" title="隐藏/显示侧边栏">☰ 菜单</button> 
+            <h1>🛠️ Instant-HTML 工具箱导航</h1> 
+        </div> 
+        <div id="file-count" style="font-size: 0.9rem; color: #666;">正在扫描...</div> 
+    </header> 
+    <main> 
+        <div id="sidebar"> 
+            <input type="text" class="search-box" placeholder="🔍 搜索工具..." id="search"> 
+            <div id="tool-list"> 
+        <div class="folder-group"> 
+            <div class="folder-name">Tools_Box</div> 
+            <a href="#" class="tool-link" data-path="Tools_Box/Markdown预览(MDViewer).html">Markdown预览(MDViewer)</a> 
+            <a href="#" class="tool-link" data-path="Tools_Box/专注番茄钟(Pomodoro).html">专注番茄钟(Pomodoro)</a> 
+            <a href="#" class="tool-link" data-path="Tools_Box/二维码生成器(QRGen).html">二维码生成器(QRGen)</a> 
+            <a href="#" class="tool-link" data-path="Tools_Box/代码片段板(SnippetBoard).html">代码片段板(SnippetBoard)</a> 
+            <a href="#" class="tool-link" data-path="Tools_Box/助眠白噪音(WhiteNoise).html">助眠白噪音(WhiteNoise)</a> 
+            <a href="#" class="tool-link" data-path="Tools_Box/待办任务清单(ToDoList).html">待办任务清单(ToDoList)</a> 
+            <a href="#" class="tool-link" data-path="Tools_Box/数字时钟秒表(ClockTool).html">数字时钟秒表(ClockTool)</a> 
+            <a href="#" class="tool-link" data-path="Tools_Box/文本字数统计(WordCount).html">文本字数统计(WordCount)</a> 
+            <a href="#" class="tool-link" data-path="Tools_Box/本地音乐播放与管理工具(Local Music Player).html">本地音乐播放与管理工具(Local Music Player)</a> 
+            <a href="#" class="tool-link" data-path="Tools_Box/正则测试器(RegexTool).html">正则测试器(RegexTool)</a> 
+            <a href="#" class="tool-link" data-path="Tools_Box/网页涂鸦板(DoodleBoard).html">网页涂鸦板(DoodleBoard)</a> 
+            <a href="#" class="tool-link" data-path="Tools_Box/视频录像涂鸦(VidDoodle).html">视频录像涂鸦(VidDoodle)</a> 
+            <a href="#" class="tool-link" data-path="Tools_Box/通用单位换算(UnitConv).html">通用单位换算(UnitConv)</a> 
+            <a href="#" class="tool-link" data-path="Tools_Box/键盘按键探测(KeyScan).html">键盘按键探测(KeyScan)</a> 
+            <a href="#" class="tool-link" data-path="Tools_Box/音频录制裁剪(AudioEdit).html">音频录制裁剪(AudioEdit)</a> 
+            <a href="#" class="tool-link" data-path="Tools_Box/颜色转换取色(ColorTool).html">颜色转换取色(ColorTool)</a> 
+        </div> 
+        <div class="folder-group"> 
+            <div class="folder-name">Toos_BoxB</div> 
+            <a href="#" class="tool-link" data-path="Toos_BoxB/复利计算器.html">复利计算器</a> 
+        </div> 
+            </div> 
+        </div> 
+        <div id="content"> 
+            <div id="welcome" class="empty-state"> 
+                <h2>欢迎使用 HTML 工具箱</h2> 
+                <p>从左侧菜单选择一个工具开始使用吧</p> 
+                <p style="font-size: 0.8rem; margin-top: 20px;">提示：点击左上角“菜单”按钮可隐藏侧栏</p> 
+            </div> 
+            <iframe id="tool-frame" style="display: none;"></iframe> 
+        </div> 
+    </main> 
+    <script> 
+        const toolLinks = document.querySelectorAll('.tool-link'); 
+        const toolFrame = document.getElementById('tool-frame'); 
+        const welcome = document.getElementById('welcome'); 
+        const searchInput = document.getElementById('search'); 
+        const fileCount = document.getElementById('file-count'); 
+        const sidebar = document.getElementById('sidebar'); 
+        const toggleBtn = document.getElementById('toggle-btn'); 
+        fileCount.textContent = "共找到 " + toolLinks.length + " 个工具"; 
+        toggleBtn.onclick = function() { 
+            sidebar.classList.toggle('hidden'); 
+        }; 
+        toolLinks.forEach(function(link) { 
+            link.onclick = function(e) { 
+                e.preventDefault(); 
+                toolLinks.forEach(function(l) { l.classList.remove('active'); }); 
+                link.classList.add('active'); 
+                welcome.style.display = 'none'; 
+                toolFrame.style.display = 'block'; 
+                toolFrame.src = link.getAttribute('data-path'); 
+            }; 
+        }); 
+        searchInput.oninput = function(e) { 
+            const filter = e.target.value.toLowerCase(); 
+            let visibleCount = 0; 
+            document.querySelectorAll('.folder-group').forEach(function(group) { 
+                let groupHasVisible = false; 
+                group.querySelectorAll('.tool-link').forEach(function(link) { 
+                    const text = link.textContent.toLowerCase(); 
+                    if (text.indexOf(filter) == -1) { 
+                        link.style.display = 'block'; 
+                        groupHasVisible = true; 
+                        visibleCount++; 
+                    } else { 
+                        link.style.display = 'none'; 
+                    } 
+                }); 
+                group.style.display = groupHasVisible ? 'block' : 'none'; 
+            }); 
+            fileCount.textContent = "匹配到 " + visibleCount + " 个工具"; 
+        }; 
+    </script> 
+</body> 
+</html> 
