@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>全能开发者与生活工具箱</title>
+    <style>
+        :root {
+            --primary: #4f46e5;
+            --secondary: #10b981;
+            --accent: #f59e0b;
+            --danger: #ef4444;
+            --bg: #f8fafc;
+            --card: #ffffff;
+            --text: #1e293b;
+            --border: #e2e8f0;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            padding: 20px;
+            line-height: 1.5;
+        }
+
+        .header { text-align: center; margin-bottom: 30px; }
+        .header h1 { font-size: 1.8rem; color: var(--primary); }
+
+        /* 响应式网格布局 */
+        .grid-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .card {
+            background: var(--card);
+            padding: 24px;
+            border-radius: 16px;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
+            border: 1px solid var(--border);
+        }
+
+        .card h2 {
+            font-size: 1.1rem;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: #334155;
+        }
+
+        /* 通用表单样式 */
+        .form-group { margin-bottom: 12px; }
+        label { display: block; font-size: 0.85rem; font-weight: 600; color: #64748b; margin-bottom: 5px; }
+        
+        .input-row { display: flex; gap: 8px; align-items: center; }
+        input, select {
+            width: 100%;
+            padding: 10px 12px;
+            border: 2px solid var(--border);
+            border-radius: 8px;
+            outline: none;
+            font-size: 0.95rem;
+            transition: all 0.2s;
+        }
+        input:focus { border-color: var(--primary); }
+
+        .result-box {
+            margin-top: 15px;
+            padding: 12px;
+            background: #f1f5f9;
+            border-radius: 8px;
+            font-size: 0.9rem;
+        }
+
+        /* 按钮样式 */
+        .btn {
+            width: 100%;
+            padding: 12px;
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            margin-top: 10px;
+        }
+        .btn:hover { opacity: 0.9; }
+
+        /* 状态颜色 */
+        .status-healthy { color: var(--secondary); font-weight: bold; }
+        .status-warning { color: var(--accent); font-weight: bold; }
+        .status-danger { color: var(--danger); font-weight: bold; }
+
+        .highlight { font-size: 1.2rem; color: var(--primary); font-weight: bold; }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <h1>全能工具箱</h1>
+</div>
+
+<div class="grid-container">
+    
+    <div class="card">
+        <h2>⚖️ 常用单位换算</h2>
+        <div class="form-group">
+            <label>长度 (米 ⇄ 英寸)</label>
+            <div class="input-row">
+                <input type="number" id="unit-m" placeholder="米">
+                <span>=</span>
+                <input type="number" id="unit-in" placeholder="英寸">
+            </div>
+        </div>
+        <div class="form-group">
+            <label>重量 (千克 ⇄ 磅)</label>
+            <div class="input-row">
+                <input type="number" id="unit-kg" placeholder="千克">
+                <span>=</span>
+                <input type="number" id="unit-lb" placeholder="磅">
+            </div>
+        </div>
+        <div class="form-group">
+            <label>温度 (摄氏度 ⇄ 华氏度)</label>
+            <div class="input-row">
+                <input type="number" id="unit-c" placeholder="°C">
+                <span>=</span>
+                <input type="number" id="unit-f" placeholder="°F">
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>🔢 进制转换器</h2>
+        <div class="form-group">
+            <label>二进制 (Bin)</label>
+            <input type="text" id="base-2" placeholder="0101...">
+        </div>
+        <div class="form-group">
+            <label>十进制 (Dec)</label>
+            <input type="text" id="base-10" placeholder="123...">
+        </div>
+        <div class="form-group">
+            <label>十六进制 (Hex)</label>
+            <input type="text" id="base-16" placeholder="ABC...">
+        </div>
+        <p style="font-size: 0.75rem; color: #94a3b8;">* 输入任意一行，其他自动转换</p>
+    </div>
+
+    <div class="card">
+        <h2>🏃 BMI 健康计算</h2>
+        <div class="form-group">
+            <label>身高 (cm)</label>
+            <input type="number" id="bmi-height" placeholder="例如: 175">
+        </div>
+        <div class="form-group">
+            <label>体重 (kg)</label>
+            <input type="number" id="bmi-weight" placeholder="例如: 70">
+        </div>
+        <div class="result-box" id="bmi-result">
+            请输入数据计算 BMI
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>💰 房贷/分期 (等额本息)</h2>
+        <div class="form-group">
+            <label>贷款总额 (元)</label>
+            <input type="number" id="loan-amount" value="1000000">
+        </div>
+        <div class="form-group">
+            <label>贷款期限 (月)</label>
+            <input type="number" id="loan-months" value="360">
+        </div>
+        <div class="form-group">
+            <label>年利率 (%)</label>
+            <input type="number" id="loan-rate" step="0.01" value="3.5">
+        </div>
+        <div class="result-box">
+            月供: <span id="monthly-pay" class="highlight">0.00</span> 元<br>
+            总利息: <span id="total-interest">0.00</span> 元
+        </div>
+    </div>
+
+</div>
+
+<script>
+    // --- 1. 单位换算逻辑 ---
+    const setupUnit = (id1, id2, ratio, isTemp = false) => {
+        const e1 = document.getElementById(id1), e2 = document.getElementById(id2);
+        e1.oninput = () => {
+            if(!e1.value) return e2.value = '';
+            e2.value = isTemp ? (e1.value * 1.8 + 32).toFixed(2) : (e1.value * ratio).toFixed(4);
+        };
+        e2.oninput = () => {
+            if(!e2.value) return e1.value = '';
+            e1.value = isTemp ? ((e2.value - 32) / 1.8).toFixed(2) : (e2.value / ratio).toFixed(4);
+        };
+    };
+    setupUnit('unit-m', 'unit-in', 39.3701);
+    setupUnit('unit-kg', 'unit-lb', 2.2046);
+    setupUnit('unit-c', 'unit-f', null, true);
+
+    // --- 2. 进制转换逻辑 ---
+    const bases = {2: 'base-2', 10: 'base-10', 16: 'base-16'};
+    Object.keys(bases).forEach(b => {
+        const el = document.getElementById(bases[b]);
+        el.oninput = () => {
+            if(!el.value) { Object.values(bases).forEach(id => document.getElementById(id).value = ''); return; }
+            const dec = parseInt(el.value, b);
+            if(isNaN(dec)) return;
+            Object.keys(bases).forEach(targetB => {
+                if(targetB != b) document.getElementById(bases[targetB]).value = dec.toString(targetB).toUpperCase();
+            });
+        };
+    });
+
+    // --- 3. BMI 计算逻辑 ---
+    const hIn = document.getElementById('bmi-height'), wIn = document.getElementById('bmi-weight'), res = document.getElementById('bmi-result');
+    const calcBMI = () => {
+        const h = hIn.value / 100, w = wIn.value;
+        if(h > 0 && w > 0) {
+            const bmi = (w / (h * h)).toFixed(1);
+            let cat = '', cls = '';
+            if(bmi < 18.5) { cat = '偏瘦'; cls = 'status-warning'; }
+            else if(bmi < 24) { cat = '健康'; cls = 'status-healthy'; }
+            else if(bmi < 28) { cat = '超重'; cls = 'status-warning'; }
+            else { cat = '肥胖'; cls = 'status-danger'; }
+            res.innerHTML = `BMI 指数: <span class="highlight">${bmi}</span><br>身体状态: <span class="${cls}">${cat}</span>`;
+        }
+    };
+    hIn.oninput = wIn.oninput = calcBMI;
+
+    // --- 4. 房贷计算逻辑 ---
+    const lAmt = document.getElementById('loan-amount'), lMon = document.getElementById('loan-months'), lRate = document.getElementById('loan-rate');
+    const mPay = document.getElementById('monthly-pay'), tInt = document.getElementById('total-interest');
+    const calcLoan = () => {
+        const P = lAmt.value, n = lMon.value, annualR = lRate.value / 100;
+        if(P > 0 && n > 0 && annualR > 0) {
+            const r = annualR / 12;
+            const monthly = P * r * Math.pow(1 + r, n) / (Math.pow(1 + r, n) - 1);
+            const totalPay = monthly * n;
+            mPay.innerText = monthly.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+            tInt.innerText = (totalPay - P).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+        }
+    };
+    [lAmt, lMon, lRate].forEach(el => el.oninput = calcLoan);
+    calcLoan(); // 初始化计算
+</script>
+
+</body>
+</html>

@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pro QR - 极速二维码生成器 (终极稳定版)</title>
+    <style>
+        :root {
+            --primary: #3b82f6;
+            --primary-hover: #2563eb;
+            --bg: #f3f4f6;
+            --card: #ffffff;
+            --text-main: #1f2937;
+            --text-muted: #6b7280;
+            --border: #e5e7eb;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: var(--bg);
+            color: var(--text-main);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .card {
+            background: var(--card);
+            width: 100%;
+            max-width: 450px;
+            border-radius: 20px;
+            padding: 2.5rem 2rem;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+            text-align: center;
+        }
+
+        .header h1 { font-size: 1.5rem; margin-bottom: 0.5rem; }
+        .header p { font-size: 0.9rem; color: var(--text-muted); margin-bottom: 2rem; }
+
+        .input-group { display: flex; flex-direction: column; gap: 15px; margin-bottom: 2rem; }
+
+        textarea {
+            width: 100%; padding: 15px; border: 2px solid var(--border);
+            border-radius: 12px; font-size: 1rem; font-family: inherit;
+            resize: vertical; min-height: 100px; outline: none; transition: 0.2s;
+        }
+        textarea:focus { border-color: var(--primary); }
+
+        .btn {
+            width: 100%; padding: 14px; background-color: var(--primary);
+            color: white; border: none; border-radius: 12px; font-size: 1.1rem;
+            font-weight: bold; cursor: pointer; transition: 0.2s;
+        }
+        .btn:hover { background-color: var(--primary-hover); transform: translateY(-2px); }
+
+        .qr-wrapper {
+            display: none; flex-direction: column; align-items: center; gap: 20px;
+            margin-top: 1rem; padding-top: 2rem; border-top: 1px dashed var(--border);
+        }
+
+        #qrcode-box {
+            background: white; padding: 15px; border-radius: 16px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1); display: inline-block;
+            min-width: 200px; min-height: 200px; /* 占位，防止图片加载时闪烁 */
+            display: flex; justify-content: center; align-items: center;
+        }
+
+        .btn-download { background-color: #10b981; width: auto; padding: 10px 30px; font-size: 1rem; }
+        .btn-download:hover { background-color: #059669; }
+
+        .toast {
+            position: fixed; top: 20px; left: 50%; transform: translateX(-50%) translateY(-100px);
+            background: #ef4444; color: white; padding: 10px 25px; border-radius: 30px;
+            font-size: 0.95rem; font-weight: bold; opacity: 0; transition: all 0.3s; z-index: 1000;
+        }
+        .toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+        
+        /* 加载动画 */
+        .loading-text { color: #9ca3af; font-size: 0.9rem; }
+    </style>
+</head>
+<body>
+
+    <div class="toast" id="toast">⚠️ 请先输入内容！</div>
+
+    <div class="card">
+        <div class="header">
+            <h1>Pro QR</h1>
+            <p>输入任意文本或链接，极速生成二维码</p>
+        </div>
+
+        <div class="input-group">
+            <textarea id="textInput" placeholder="在此粘贴你的网址、名片信息或任意文本..."></textarea>
+            <button class="btn" onclick="generateQR()">生成二维码</button>
+        </div>
+
+        <div class="qr-wrapper" id="qrWrapper">
+            <div id="qrcode-box">
+                </div>
+            <button class="btn btn-download" onclick="downloadQR()">⬇️ 下载图片</button>
+            <p style="font-size: 0.8rem; color: #999; margin-top: -10px;">如果无法下载，请直接右键图片“另存为”</p>
+        </div>
+    </div>
+
+    <script>
+        const qrBox = document.getElementById('qrcode-box');
+        const textInput = document.getElementById('textInput');
+        const qrWrapper = document.getElementById('qrWrapper');
+
+        function generateQR() {
+            const text = textInput.value.trim();
+            if (!text) {
+                showToast();
+                return;
+            }
+
+            // 显示加载状态和区域
+            qrWrapper.style.display = 'flex';
+            qrBox.innerHTML = '<span class="loading-text">生成中...</span>';
+
+            // 将文本进行 URL 编码（防止特殊字符破坏链接）
+            const encodedText = encodeURIComponent(text);
+            
+            // 使用公共 API 直接生成图片链接
+            const imgUrl = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodedText}`;
+
+            // 创建图片标签
+            const img = new Image();
+            img.crossOrigin = "Anonymous"; // 允许跨域下载
+            img.id = "qr-image";
+            img.style.display = "block";
+            
+            // 图片加载成功后替换掉“生成中...”的文字
+            img.onload = function() {
+                qrBox.innerHTML = '';
+                qrBox.appendChild(img);
+            };
+            
+            // 赋值 src 触发加载
+            img.src = imgUrl;
+        }
+
+        // --- 异步下载图片逻辑 ---
+        async function downloadQR() {
+            const img = document.getElementById('qr-image');
+            if (!img) return;
+
+            try {
+                // 将网络图片抓取到本地内存中转换为 Blob
+                const response = await fetch(img.src);
+                const blob = await response.blob();
+                
+                // 创建本地虚拟链接并触发下载
+                const localUrl = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = localUrl;
+                a.download = 'ProQR_' + Date.now() + '.png';
+                document.body.appendChild(a);
+                a.click();
+                
+                // 清理内存
+                document.body.removeChild(a);
+                window.URL.revokeObjectURL(localUrl);
+            } catch (err) {
+                console.error("跨域下载受限:", err);
+                alert("浏览器限制了直接下载。请直接【右键点击上方的二维码图片】，选择“图片另存为”即可保存！");
+            }
+        }
+
+        function showToast() {
+            const toast = document.getElementById('toast');
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 2000);
+        }
+
+        textInput.addEventListener('keydown', function(e) {
+            if (e.ctrlKey && e.key === 'Enter') generateQR();
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI 音频在线录制与编辑器 (增强版)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- WaveSurfer.js 主库 -->
+    <script src="https://unpkg.com/wavesurfer.js@7/dist/wavesurfer.min.js"></script>
+    <!-- WaveSurfer Regions 插件用于选择和编辑 -->
+    <script src="https://unpkg.com/wavesurfer.js@7/dist/plugins/regions.min.js"></script>
+    <style>
+        .waveform-container {
+            background: rgba(15, 23, 42, 0.05);
+            border-radius: 12px;
+            position: relative;
+        }
+        #wave-timeline {
+            margin-top: 10px;
+            font-size: 10px;
+        }
+        .btn-record.recording {
+            animation: pulse 1.5s infinite;
+        }
+        @keyframes pulse {
+            0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
+            70% { transform: scale(1.05); box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
+            100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+        }
+        .loader {
+            border-top-color: #3b82f6;
+            animation: spinner 1.5s linear infinite;
+        }
+        @keyframes spinner {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .source-tab {
+            transition: all 0.2s;
+        }
+        input[type="radio"]:checked + label {
+            background-color: #3b82f6;
+            color: white;
+            border-color: #3b82f6;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen text-gray-800 font-sans">
+
+    <div class="max-w-5xl mx-auto px-4 py-10">
+        <!-- 头部 -->
+        <header class="text-center mb-10">
+            <h1 class="text-3xl font-bold text-gray-900 mb-2">专业音频录制与编辑器</h1>
+            <p class="text-gray-500">支持麦克风、系统声音及混音录制，自由剪辑声纹长度</p>
+        </header>
+
+        <!-- 主控制面板 -->
+        <div class="bg-white rounded-2xl shadow-xl p-6 mb-8">
+            
+            <!-- 录音模式选择 -->
+            <div id="recording-setup" class="flex flex-col items-center mb-8">
+                <p class="text-sm font-medium text-gray-600 mb-4">选择录音来源：</p>
+                <div class="flex bg-gray-100 p-1 rounded-xl w-full max-w-md">
+                    <div class="flex-1">
+                        <input type="radio" name="audio-source" id="src-mic" value="mic" class="hidden" checked>
+                        <label for="src-mic" class="block text-center py-2 text-sm cursor-pointer rounded-lg source-tab">仅麦克风</label>
+                    </div>
+                    <div class="flex-1">
+                        <input type="radio" name="audio-source" id="src-system" value="system" class="hidden">
+                        <label for="src-system" class="block text-center py-2 text-sm cursor-pointer rounded-lg source-tab">仅系统声音</label>
+                    </div>
+                    <div class="flex-1">
+                        <input type="radio" name="audio-source" id="src-mixed" value="mixed" class="hidden">
+                        <label for="src-mixed" class="block text-center py-2 text-sm cursor-pointer rounded-lg source-tab">麦克风+系统</label>
+                    </div>
+                </div>
+                <p id="system-audio-hint" class="hidden mt-3 text-xs text-orange-500 flex items-center">
+                    <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"></path></svg>
+                    提示：录制系统音频需要 HTTPS 环境及浏览器权限支持
+                </p>
+            </div>
+
+            <!-- 录音控制 -->
+            <div class="flex flex-col items-center justify-center mb-8 pb-8 border-b border-gray-100">
+                <div id="record-timer" class="text-4xl font-mono font-bold text-gray-700 mb-4">00:00</div>
+                <div class="flex space-x-4">
+                    <button id="btn-start-record" class="btn-record flex items-center px-8 py-3 bg-red-500 hover:bg-red-600 text-white rounded-full transition-all shadow-lg active:scale-95">
+                        <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20"><circle cx="10" cy="10" r="6"></circle></svg>
+                        开始录音
+                    </button>
+                    <button id="btn-stop-record" class="hidden flex items-center px-8 py-3 bg-gray-800 hover:bg-gray-900 text-white rounded-full transition-all shadow-lg active:scale-95">
+                        <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8 7a1 1 0 00-1 1v4a1 1 0 001 1h4a1 1 0 001-1V8a1 1 0 00-1-1H8z" clip-rule="evenodd"></path></svg>
+                        停止录制
+                    </button>
+                </div>
+            </div>
+
+            <!-- 编辑器区域 -->
+            <div id="editor-container" class="hidden">
+                <div class="flex justify-between items-center mb-4">
+                    <div class="flex space-x-2">
+                        <button id="btn-play-pause" class="p-2 bg-blue-100 text-blue-600 rounded-lg hover:bg-blue-200 transition-colors" title="播放/暂停">
+                            <svg id="play-icon" class="w-6 h-6" fill="currentColor" viewBox="0 0 20 20"><path d="M4.5 3.5v13L16 10z"/></svg>
+                        </button>
+                        <button id="btn-zoom-in" class="p-2 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200" title="放大波形">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7"/></svg>
+                        </button>
+                        <button id="btn-zoom-out" class="p-2 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200" title="缩小波形">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM13 10H7"/></svg>
+                        </button>
+                    </div>
+
+                    <div class="flex space-x-2">
+                        <button id="btn-delete-region" class="px-4 py-2 bg-orange-100 text-orange-600 rounded-lg hover:bg-orange-200 disabled:opacity-50 font-medium transition-colors" disabled>
+                            删除选中中间段
+                        </button>
+                        <button id="btn-crop-region" class="px-4 py-2 bg-green-100 text-green-600 rounded-lg hover:bg-green-200 disabled:opacity-50 font-medium transition-colors" disabled>
+                            仅保留选中部分
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 波形展示区 -->
+                <div class="waveform-container p-4 border border-dashed border-gray-300">
+                    <div id="waveform"></div>
+                    <div id="wave-timeline"></div>
+                    <div id="loading-overlay" class="hidden absolute inset-0 bg-white/80 flex items-center justify-center z-10 rounded-xl">
+                        <div class="loader ease-linear rounded-full border-4 border-t-4 border-gray-200 h-12 w-12 mr-3"></div>
+                        <span class="text-blue-600 font-medium text-sm">正在合成音频...</span>
+                    </div>
+                </div>
+
+                <div class="mt-6 flex justify-between items-center">
+                    <span class="text-xs text-gray-400">提示：拖动波形以选择编辑区域</span>
+                    <button id="btn-download" class="px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl shadow-lg transition-all font-bold flex items-center">
+                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                        导出为 WAV
+                    </button>
+                </div>
+            </div>
+
+            <!-- 提示信息 -->
+            <div id="empty-state" class="py-12 text-center text-gray-400">
+                <svg class="w-16 h-16 mx-auto mb-4 opacity-20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"/></svg>
+                <p>选择音频源并开始录制</p>
+            </div>
+        </div>
+        
+        <!-- 底部信息 -->
+        <div id="error-display" class="hidden mb-8 p-4 bg-red-50 border border-red-200 rounded-xl text-red-600 text-sm">
+            <!-- 错误消息将显示在这里 -->
+        </div>
+    </div>
+
+    <script>
+        let mediaRecorder;
+        let audioChunks = [];
+        let wavesurfer;
+        let wsRegions;
+        let activeRegion = null;
+        let audioContext = null;
+        let currentBuffer = null;
+        let recordStartTime;
+        let timerInterval;
+        let recordingStreams = [];
+
+        // 监听单选框变化
+        document.querySelectorAll('input[name="audio-source"]').forEach(radio => {
+            radio.addEventListener('change', (e) => {
+                const hint = document.getElementById('system-audio-hint');
+                hint.classList.toggle('hidden', e.target.value === 'mic');
+                hideError();
+            });
+        });
+
+        function showError(msg) {
+            const errDiv = document.getElementById('error-display');
+            errDiv.innerText = msg;
+            errDiv.classList.remove('hidden');
+        }
+
+        function hideError() {
+            document.getElementById('error-display').classList.add('hidden');
+        }
+
+        // 初始化 WaveSurfer
+        function initWaveSurfer() {
+            if (wavesurfer) wavesurfer.destroy();
+            wavesurfer = WaveSurfer.create({
+                container: '#waveform',
+                waveColor: '#94a3b8',
+                progressColor: '#3b82f6',
+                cursorColor: '#2563eb',
+                barWidth: 2,
+                barRadius: 3,
+                responsive: true,
+                height: 128,
+                normalize: true,
+                minPxPerSec: 50
+            });
+            wsRegions = wavesurfer.registerPlugin(WaveSurfer.Regions.create());
+            wsRegions.on('region-created', (region) => {
+                wsRegions.getRegions().forEach(r => { if (r !== region) r.remove(); });
+                activeRegion = region;
+                toggleEditButtons(true);
+            });
+            wsRegions.on('region-updated', (region) => { activeRegion = region; });
+            wavesurfer.on('play', () => { document.getElementById('play-icon').innerHTML = '<path d="M5 4h3v12H5V4zm7 0h3v12h-3V4z"/>'; });
+            wavesurfer.on('pause', () => { document.getElementById('play-icon').innerHTML = '<path d="M4.5 3.5v13L16 10z"/>'; });
+            wsRegions.enableDragSelection({ color: 'rgba(59, 130, 246, 0.2)' });
+        }
+
+        function toggleEditButtons(enabled) {
+            document.getElementById('btn-delete-region').disabled = !enabled;
+            document.getElementById('btn-crop-region').disabled = !enabled;
+        }
+
+        const btnStart = document.getElementById('btn-start-record');
+        const btnStop = document.getElementById('btn-stop-record');
+        const timerDisplay = document.getElementById('record-timer');
+
+        btnStart.onclick = async () => {
+            hideError();
+            const source = document.querySelector('input[name="audio-source"]:checked').value;
+            recordingStreams = [];
+            
+            try {
+                let finalStream;
+
+                // 1. 获取麦克风流
+                if (source === 'mic' || source === 'mixed') {
+                    try {
+                        const micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                        recordingStreams.push(micStream);
+                    } catch (e) {
+                        throw new Error("无法访问麦克风。请检查权限设置。");
+                    }
+                }
+
+                // 2. 获取系统声音流
+                if (source === 'system' || source === 'mixed') {
+                    if (!navigator.mediaDevices.getDisplayMedia) {
+                        throw new Error("您的浏览器不支持系统音频录制。");
+                    }
+                    try {
+                        const systemStream = await navigator.mediaDevices.getDisplayMedia({ 
+                            video: true, // 必须请求 video 才能获取音频
+                            audio: true 
+                        });
+                        
+                        if (!systemStream.getAudioTracks().length) {
+                            systemStream.getTracks().forEach(t => t.stop());
+                            throw new Error("未检测到系统音频。录制时请务必勾选‘共享音频’选项。");
+                        }
+                        recordingStreams.push(systemStream);
+                    } catch (e) {
+                        if (e.name === 'NotAllowedError') {
+                            if (e.message.includes('permissions policy')) {
+                                throw new Error("录制系统声音被安全策略拦截。这通常发生在沙盒预览环境中。请尝试将代码保存并在本地 HTTPS 页面或独立窗口中运行。");
+                            } else {
+                                throw new Error("用户取消了屏幕共享或未授予权限。");
+                            }
+                        }
+                        throw e;
+                    }
+                }
+
+                // 3. 合并流
+                if (recordingStreams.length === 1) {
+                    finalStream = recordingStreams[0];
+                } else if (recordingStreams.length === 2) {
+                    if (!audioContext) audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                    const dest = audioContext.createMediaStreamDestination();
+                    recordingStreams.forEach(s => {
+                        const sourceNode = audioContext.createMediaStreamSource(s);
+                        sourceNode.connect(dest);
+                    });
+                    finalStream = dest.stream;
+                }
+
+                mediaRecorder = new MediaRecorder(finalStream);
+                audioChunks = [];
+                mediaRecorder.ondataavailable = (e) => { audioChunks.push(e.data); };
+                mediaRecorder.onstop = async () => {
+                    const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+                    const arrayBuffer = await audioBlob.arrayBuffer();
+                    if (!audioContext) audioContext = new AudioContext();
+                    currentBuffer = await audioContext.decodeAudioData(arrayBuffer);
+                    loadBuffer(currentBuffer);
+                    recordingStreams.forEach(s => s.getTracks().forEach(t => t.stop()));
+                };
+
+                mediaRecorder.start();
+                btnStart.classList.add('hidden');
+                btnStop.classList.remove('hidden');
+                btnStart.classList.add('recording');
+                recordStartTime = Date.now();
+                timerInterval = setInterval(updateTimer, 100);
+                document.getElementById('empty-state').classList.add('hidden');
+                document.getElementById('editor-container').classList.add('hidden');
+                document.getElementById('recording-setup').classList.add('opacity-50', 'pointer-events-none');
+
+            } catch (err) {
+                console.error(err);
+                showError(err.message);
+                // 清理可能已开启的流
+                recordingStreams.forEach(s => s.getTracks().forEach(t => t.stop()));
+                resetUI();
+            }
+        };
+
+        function resetUI() {
+            btnStart.classList.remove('hidden');
+            btnStop.classList.add('hidden');
+            btnStart.classList.remove('recording');
+            clearInterval(timerInterval);
+            timerDisplay.innerText = "00:00";
+            document.getElementById('recording-setup').classList.remove('opacity-50', 'pointer-events-none');
+        }
+
+        btnStop.onclick = () => {
+            if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+                mediaRecorder.stop();
+            }
+            resetUI();
+        };
+
+        function updateTimer() {
+            const now = Date.now();
+            const diff = new Date(now - recordStartTime);
+            const m = String(diff.getMinutes()).padStart(2, '0');
+            const s = String(diff.getSeconds()).padStart(2, '0');
+            timerDisplay.innerText = `${m}:${s}`;
+        }
+
+        function loadBuffer(buffer) {
+            document.getElementById('editor-container').classList.remove('hidden');
+            if (!wavesurfer) initWaveSurfer();
+            const wavBlob = audioBufferToWavBlob(buffer);
+            wavesurfer.loadBlob(wavBlob);
+            toggleEditButtons(false);
+            activeRegion = null;
+        }
+
+        document.getElementById('btn-delete-region').onclick = async () => {
+            if (!activeRegion || !currentBuffer) return;
+            showLoading(true);
+            const start = activeRegion.start, end = activeRegion.end;
+            const sr = currentBuffer.sampleRate;
+            const startFrame = Math.floor(start * sr), endFrame = Math.floor(end * sr);
+            const newLength = currentBuffer.length - (endFrame - startFrame);
+            if (newLength <= 0) { showLoading(false); return; }
+            const newBuffer = audioContext.createBuffer(currentBuffer.numberOfChannels, newLength, sr);
+            for (let channel = 0; channel < currentBuffer.numberOfChannels; channel++) {
+                const oldData = currentBuffer.getChannelData(channel);
+                const newData = newBuffer.getChannelData(channel);
+                newData.set(oldData.subarray(0, startFrame));
+                newData.set(oldData.subarray(endFrame), startFrame);
+            }
+            currentBuffer = newBuffer;
+            loadBuffer(currentBuffer);
+            showLoading(false);
+        };
+
+        document.getElementById('btn-crop-region').onclick = async () => {
+            if (!activeRegion || !currentBuffer) return;
+            showLoading(true);
+            const start = activeRegion.start, end = activeRegion.end;
+            const sr = currentBuffer.sampleRate;
+            const startFrame = Math.floor(start * sr), endFrame = Math.floor(end * sr);
+            const newLength = endFrame - startFrame;
+            const newBuffer = audioContext.createBuffer(currentBuffer.numberOfChannels, newLength, sr);
+            for (let channel = 0; channel < currentBuffer.numberOfChannels; channel++) {
+                const oldData = currentBuffer.getChannelData(channel);
+                const newData = newBuffer.getChannelData(channel);
+                newData.set(oldData.subarray(startFrame, endFrame));
+            }
+            currentBuffer = newBuffer;
+            loadBuffer(currentBuffer);
+            showLoading(false);
+        };
+
+        document.getElementById('btn-play-pause').onclick = () => wavesurfer.playPause();
+        document.getElementById('btn-zoom-in').onclick = () => wavesurfer.zoom(wavesurfer.options.minPxPerSec + 50);
+        document.getElementById('btn-zoom-out').onclick = () => wavesurfer.zoom(Math.max(10, wavesurfer.options.minPxPerSec - 50));
+
+        document.getElementById('btn-download').onclick = () => {
+            if (!currentBuffer) return;
+            const blob = audioBufferToWavBlob(currentBuffer);
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `audio_export_${Date.now()}.wav`;
+            a.click();
+        };
+
+        function showLoading(show) {
+            document.getElementById('loading-overlay').classList.toggle('hidden', !show);
+        }
+
+        function audioBufferToWavBlob(buffer) {
+            const numOfChan = buffer.numberOfChannels, length = buffer.length * numOfChan * 2 + 44;
+            const bufferArray = new ArrayBuffer(length), view = new DataView(bufferArray);
+            const channels = []; let offset = 0, pos = 0;
+            const setUint16 = d => { view.setUint16(offset, d, true); offset += 2; };
+            const setUint32 = d => { view.setUint32(offset, d, true); offset += 4; };
+            setUint32(0x46464952); setUint32(length - 8); setUint32(0x45564157); setUint32(0x20746d66);
+            setUint32(16); setUint16(1); setUint16(numOfChan); setUint32(buffer.sampleRate);
+            setUint32(buffer.sampleRate * 2 * numOfChan); setUint16(numOfChan * 2); setUint16(16);
+            setUint32(0x61746164); setUint32(length - offset - 4);
+            for (let i = 0; i < numOfChan; i++) channels.push(buffer.getChannelData(i));
+            while (pos < buffer.length) {
+                for (let i = 0; i < numOfChan; i++) {
+                    let sample = Math.max(-1, Math.min(1, channels[i][pos]));
+                    sample = sample < 0 ? sample * 0x8000 : sample * 0x7FFF;
+                    view.setInt16(offset, sample, true); offset += 2;
+                }
+                pos++;
+            }
+            return new Blob([bufferArray], { type: 'audio/wav' });
+        }
+    </script>
+</body>
+</html>

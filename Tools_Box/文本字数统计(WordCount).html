@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>多功能字数统计工具</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: #f3f4f6;
+            color: #333;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        .container {
+            background-color: #ffffff;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+            width: 100%;
+            max-width: 600px;
+        }
+        h2 {
+            margin-top: 0;
+            text-align: center;
+            color: #1f2937;
+        }
+        textarea {
+            width: 100%;
+            height: 200px;
+            padding: 15px;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            font-size: 16px;
+            resize: vertical;
+            box-sizing: border-box;
+            outline: none;
+            transition: border-color 0.3s;
+            line-height: 1.5;
+        }
+        textarea:focus {
+            border-color: #3b82f6;
+        }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            margin-top: 20px;
+        }
+        .stat-card {
+            background-color: #f9fafb;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+            border: 1px solid #f3f4f6;
+        }
+        .stat-card .value {
+            display: block;
+            font-size: 28px;
+            font-weight: bold;
+            color: #2563eb;
+            margin-bottom: 5px;
+        }
+        .stat-card .label {
+            font-size: 14px;
+            color: #6b7280;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h2>字数统计工具</h2>
+        <textarea id="textInput" placeholder="请在此粘贴或输入您的文字..."></textarea>
+        
+        <div class="stats-grid">
+            <div class="stat-card">
+                <span class="value" id="cnCount">0</span>
+                <span class="label">汉字数量</span>
+            </div>
+            <div class="stat-card">
+                <span class="value" id="enCount">0</span>
+                <span class="label">英文字母</span>
+            </div>
+            <div class="stat-card">
+                <span class="value" id="numCount">0</span>
+                <span class="label">数字</span>
+            </div>
+            <div class="stat-card">
+                <span class="value" id="puncCount">0</span>
+                <span class="label">标点及符号</span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 获取页面元素
+        const textarea = document.getElementById('textInput');
+        const cnCountEl = document.getElementById('cnCount');
+        const enCountEl = document.getElementById('enCount');
+        const numCountEl = document.getElementById('numCount');
+        const puncCountEl = document.getElementById('puncCount');
+
+        // 监听输入框的内容变化（包括粘贴）
+        textarea.addEventListener('input', function() {
+            const text = this.value;
+
+            // 1. 匹配中文字符 (常用汉字范围)
+            const cnMatches = text.match(/[\u4e00-\u9fa5]/g);
+            const cnCount = cnMatches ? cnMatches.length : 0;
+
+            // 2. 匹配英文字母 (大小写)
+            const enMatches = text.match(/[a-zA-Z]/g);
+            const enCount = enMatches ? enMatches.length : 0;
+
+            // 3. 匹配数字
+            const numMatches = text.match(/[0-9]/g);
+            const numCount = numMatches ? numMatches.length : 0;
+
+            // 4. 匹配标点及符号 
+            // 逻辑：排除汉字、英文字母、数字和空白字符（空格、换行等），剩下的都算作标点或特殊符号
+            const puncMatches = text.match(/[^\u4e00-\u9fa5a-zA-Z0-9\s]/g);
+            const puncCount = puncMatches ? puncMatches.length : 0;
+
+            // 更新页面显示
+            cnCountEl.textContent = cnCount;
+            enCountEl.textContent = enCount;
+            numCountEl.textContent = numCount;
+            puncCountEl.textContent = puncCount;
+        });
+    </script>
+
+</body>
+</html>

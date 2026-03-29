@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Focus Zen v3.0 - 100% 纯算法白噪音</title>
+    <style>
+        :root {
+            --bg: #020617;
+            --card-bg: #1e293b;
+            --text: #f1f5f9;
+            --primary: #10b981; /* 换成沉静的翠绿色 */
+            --active-glow: rgba(16, 185, 129, 0.4);
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'PingFang SC', sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            padding: 40px 20px;
+            user-select: none;
+        }
+
+        header { text-align: center; margin-bottom: 40px; }
+        h1 { font-weight: 300; letter-spacing: 4px; color: var(--primary); margin-bottom: 10px; }
+        p { color: #64748b; font-size: 0.9rem; }
+
+        .noise-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+            gap: 15px;
+            width: 100%;
+            max-width: 600px;
+        }
+
+        .noise-card {
+            background: var(--card-bg);
+            padding: 25px 10px;
+            border-radius: 16px;
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.3s ease;
+            border: 1px solid #334155;
+        }
+
+        .noise-card:hover { transform: translateY(-3px); background: #334155; }
+        .noise-card.active {
+            border-color: var(--primary);
+            box-shadow: 0 0 20px var(--active-glow);
+            background: #064e3b; /* 激活时的深绿色背景 */
+        }
+
+        .icon { font-size: 2rem; display: block; margin-bottom: 8px; }
+        .label { font-size: 0.85rem; color: #cbd5e1; }
+
+        .controls {
+            position: fixed;
+            bottom: 40px;
+            background: rgba(30, 41, 59, 0.8);
+            backdrop-filter: blur(10px);
+            padding: 15px 30px;
+            border-radius: 100px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            border: 1px solid #475569;
+        }
+
+        input[type="range"] { width: 150px; accent-color: var(--primary); cursor: pointer; }
+    </style>
+</head>
+<body>
+
+<header>
+    <h1>Focus Zen</h1>
+    <p>100% 离线算法生成 · 拒绝任何外部链接</p>
+</header>
+
+<div class="noise-grid">
+    <div class="noise-card" onclick="toggleSynth(this, 'white')">
+        <span class="icon">🌫️</span>
+        <span class="label">纯白噪音</span>
+    </div>
+    <div class="noise-card" onclick="toggleSynth(this, 'brown')">
+        <span class="icon">🤎</span>
+        <span class="label">深沉棕噪</span>
+    </div>
+    <div class="noise-card" onclick="toggleSynth(this, 'pink')">
+        <span class="icon">🌸</span>
+        <span class="label">粉红柔噪</span>
+    </div>
+    <div class="noise-card" onclick="toggleSynth(this, 'rain')">
+        <span class="icon">🌧️</span>
+        <span class="label">连绵细雨</span>
+    </div>
+    <div class="noise-card" onclick="toggleSynth(this, 'ocean')">
+        <span class="icon">🌊</span>
+        <span class="label">潮起潮落</span>
+    </div>
+    <div class="noise-card" onclick="toggleSynth(this, 'wind')">
+        <span class="icon">🌬️</span>
+        <span class="label">山谷呼啸</span>
+    </div>
+    <div class="noise-card" onclick="toggleSynth(this, 'fire')">
+        <span class="icon">🔥</span>
+        <span class="label">电子篝火</span>
+    </div>
+    <div class="noise-card" onclick="toggleSynth(this, 'forest')">
+        <span class="icon">🦗</span>
+        <span class="label">夏夜虫鸣</span>
+    </div>
+</div>
+
+<div class="controls">
+    <span>🔈</span>
+    <input type="range" id="master-volume" min="0" max="1" step="0.01" value="0.5">
+    <span>🔊</span>
+</div>
+
+<script>
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const volumeSlider = document.getElementById('master-volume');
+    const activeSynths = {};
+
+    // 基础噪音生成器 (生成几秒钟的随机数据并循环)
+    function createNoiseBuffer(type) {
+        const bufferSize = audioCtx.sampleRate * 2; 
+        const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+        const data = buffer.getChannelData(0);
+        let lastOut = 0;
+        
+        for (let i = 0; i < bufferSize; i++) {
+            let white = Math.random() * 2 - 1;
+            if (type === 'white') {
+                data[i] = white;
+            } else if (type === 'pink') {
+                data[i] = (lastOut + (0.12 * white)) / 1.12;
+                lastOut = data[i];
+                data[i] *= 2; 
+            } else if (type === 'brown') {
+                data[i] = (lastOut + (0.02 * white)) / 1.02;
+                lastOut = data[i];
+                data[i] *= 3.5;
+            }
+        }
+        return buffer;
+    }
+
+    // --- 各种算法合成器 ---
+
+    const synths = {
+        // 1-3. 纯噪音
+        white: () => createBasicNoise('white'),
+        pink: () => createBasicNoise('pink'),
+        brown: () => createBasicNoise('brown'),
+
+        // 4. 下雨声：粉红噪音经过低通滤波，听起来像闷闷的雨声
+        rain: () => {
+            const { source, masterGain } = createBasicNoise('pink');
+            const filter = audioCtx.createBiquadFilter();
+            filter.type = 'lowpass';
+            filter.frequency.value = 1000; // 过滤掉刺耳的高频
+            
+            source.disconnect();
+            source.connect(filter);
+            filter.connect(masterGain);
+            return { source, gainNode: masterGain };
+        },
+
+        // 5. 海浪声：棕色噪音 + 低通滤波 + 缓慢的音量起伏 (LFO)
+        ocean: () => {
+            const { source, masterGain } = createBasicNoise('brown');
+            const filter = audioCtx.createBiquadFilter();
+            filter.type = 'lowpass';
+            filter.frequency.value = 400; // 声音沉闷
+
+            // 使用 LFO (低频振荡器) 模拟海浪起伏
+            const lfo = audioCtx.createOscillator();
+            lfo.type = 'sine';
+            lfo.frequency.value = 0.12; // 大约8秒一个周期
+            
+            const lfoGain = audioCtx.createGain();
+            lfoGain.gain.value = 0.5; // 起伏幅度
+            
+            lfo.connect(lfoGain);
+            lfoGain.connect(masterGain.gain); // 控制总音量
+
+            source.disconnect();
+            source.connect(filter);
+            filter.connect(masterGain);
+            lfo.start();
+
+            return { source, gainNode: masterGain, lfo };
+        },
+
+        // 6. 风声：粉红噪音 + 带通滤波 + 动态改变频率模拟风的呼啸
+        wind: () => {
+            const { source, masterGain } = createBasicNoise('pink');
+            const filter = audioCtx.createBiquadFilter();
+            filter.type = 'bandpass';
+            filter.Q.value = 1.5;
+
+            // LFO 改变风的音调 (频率)
+            const lfo = audioCtx.createOscillator();
+            lfo.type = 'sine';
+            lfo.frequency.value = 0.2; 
+            
+            const lfoGain = audioCtx.createGain();
+            lfoGain.gain.value = 400; // 频率摆动范围
+            
+            filter.frequency.value = 500; // 基础频率
+            lfo.connect(lfoGain);
+            lfoGain.connect(filter.frequency);
+
+            source.disconnect();
+            source.connect(filter);
+            filter.connect(masterGain);
+            lfo.start();
+
+            return { source, gainNode: masterGain, lfo };
+        },
+
+        // 7. 篝火声：低沉底噪 + 随机高频脉冲 (模拟噼啪声)
+        fire: () => {
+            const masterGain = audioCtx.createGain();
+            masterGain.gain.value = volumeSlider.value;
+            masterGain.connect(audioCtx.destination);
+
+            // 火焰底噪
+            const rumbleBuffer = createNoiseBuffer('brown');
+            const rumble = audioCtx.createBufferSource();
+            rumble.buffer = rumbleBuffer;
+            rumble.loop = true;
+            const rumbleGain = audioCtx.createGain();
+            rumbleGain.gain.value = 0.6;
+            rumble.connect(rumbleGain).connect(masterGain);
+            rumble.start();
+
+            // 噼啪声 (利用极度稀疏的随机尖峰)
+            const crackleSize = audioCtx.sampleRate * 2;
+            const crackleBuffer = audioCtx.createBuffer(1, crackleSize, audioCtx.sampleRate);
+            const data = crackleBuffer.getChannelData(0);
+            for(let i=0; i<crackleSize; i++) {
+                // 只有极小概率产生声音
+                data[i] = Math.random() > 0.999 ? (Math.random() * 2 - 1) * 2 : 0;
+            }
+            const crackle = audioCtx.createBufferSource();
+            crackle.buffer = crackleBuffer;
+            crackle.loop = true;
+            const crackleFilter = audioCtx.createBiquadFilter();
+            crackleFilter.type = 'highpass';
+            crackleFilter.frequency.value = 2000;
+            crackle.connect(crackleFilter).connect(masterGain);
+            crackle.start();
+
+            return { 
+                source: { stop: () => { rumble.stop(); crackle.stop(); } }, 
+                gainNode: masterGain 
+            };
+        },
+
+        // 8. 夏夜虫鸣：高频白噪音 + 快速切割 (方波 LFO) 模拟虫子振翅
+        forest: () => {
+            const { source, masterGain } = createBasicNoise('white');
+            const filter = audioCtx.createBiquadFilter();
+            filter.type = 'bandpass';
+            filter.frequency.value = 6000; // 极高的频率
+            filter.Q.value = 20; // 极窄的频带，听起来像单一音调
+
+            const lfo = audioCtx.createOscillator();
+            lfo.type = 'square';
+            lfo.frequency.value = 12; // 翅膀振动频率
+
+            const lfoGain = audioCtx.createGain();
+            lfoGain.gain.value = 0.8;
+            
+            lfo.connect(lfoGain);
+            lfoGain.connect(masterGain.gain);
+
+            source.disconnect();
+            source.connect(filter);
+            filter.connect(masterGain);
+            lfo.start();
+
+            return { source, gainNode: masterGain, lfo };
+        }
+    };
+
+    // 辅助函数：创建基础噪音节点
+    function createBasicNoise(type) {
+        const source = audioCtx.createBufferSource();
+        source.buffer = createNoiseBuffer(type);
+        source.loop = true;
+
+        const masterGain = audioCtx.createGain();
+        masterGain.gain.value = volumeSlider.value;
+        
+        source.connect(masterGain);
+        masterGain.connect(audioCtx.destination);
+        source.start();
+
+        return { source, masterGain };
+    }
+
+    // --- 核心控制逻辑 ---
+    function toggleSynth(card, type) {
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+
+        if (activeSynths[type]) {
+            // 停止并清理
+            activeSynths[type].source.stop();
+            if (activeSynths[type].lfo) activeSynths[type].lfo.stop();
+            delete activeSynths[type];
+            card.classList.remove('active');
+        } else {
+            // 启动算法生成
+            activeSynths[type] = synths[type]();
+            card.classList.add('active');
+        }
+    }
+
+    // 全局音量控制
+    volumeSlider.addEventListener('input', (e) => {
+        const v = e.target.value;
+        for (let type in activeSynths) {
+            // 平滑过渡音量，防止爆音
+            activeSynths[type].gainNode.gain.setTargetAtTime(v, audioCtx.currentTime, 0.05);
+        }
+    });
+</script>
+
+</body>
+</html>

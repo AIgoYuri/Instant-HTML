@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pro 涂鸦录屏板 (多比例版)</title>
+    <style>
+        :root {
+            --bg: #1e1e1e;
+            --panel: #2d2d2d;
+            --accent: #00ff88;
+            --text: #ffffff;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: system-ui, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            overflow: hidden;
+        }
+
+        /* 工具栏 */
+        .toolbar {
+            width: 100%;
+            background: var(--panel);
+            padding: 15px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-wrap: wrap; /* 允许在窄屏幕上换行 */
+            gap: 20px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+            z-index: 10;
+        }
+
+        .tool-group { display: flex; align-items: center; gap: 8px; }
+        
+        label { font-size: 12px; color: #aaa; text-transform: uppercase; font-weight: bold; }
+
+        input[type="color"] { border: none; width: 30px; height: 30px; cursor: pointer; background: none; }
+        
+        select {
+            padding: 6px 10px;
+            border-radius: 6px;
+            border: 1px solid #555;
+            background: #444;
+            color: white;
+            outline: none;
+            cursor: pointer;
+            font-size: 13px;
+        }
+
+        .btn {
+            padding: 8px 15px;
+            border-radius: 6px;
+            border: none;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.2s;
+        }
+
+        .btn-record { background: #ef4444; color: white; }
+        .btn-record.recording { background: #ffffff; color: #ef4444; animation: blink 1s infinite; }
+        .btn-save { background: var(--accent); color: #000; }
+        .btn-clear { background: #444; color: #ccc; }
+
+        @keyframes blink { 50% { opacity: 0.5; } }
+
+        /* 画布容器 */
+        #canvas-wrapper {
+            margin-top: 20px;
+            position: relative;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+            background: #fff;
+            cursor: none; /* 隐藏鼠标，沉浸式绘图 */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        canvas { display: block; }
+
+        /* 画笔光标 */
+        #brush-cursor {
+            position: fixed;
+            width: 10px;
+            height: 10px;
+            border: 1px solid rgba(0,0,0,0.3);
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 100;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+
+<div id="brush-cursor"></div>
+
+<div class="toolbar">
+    <div class="tool-group">
+        <label>画板比例</label>
+        <select id="ratioSelect">
+            <option value="16/9">16:9 (宽屏视频)</option>
+            <option value="9/16">9:16 (手机竖屏)</option>
+            <option value="4/3">4:3 (传统显示器)</option>
+            <option value="1/1">1:1 (正方形)</option>
+        </select>
+    </div>
+
+    <div class="tool-group">
+        <label>颜色</label>
+        <input type="color" id="colorPicker" value="#000000">
+    </div>
+    
+    <div class="tool-group">
+        <label>粗细</label>
+        <input type="range" id="lineWidth" min="1" max="30" value="5">
+    </div>
+
+    <button class="btn btn-clear" id="clearBtn">清空画板</button>
+    <button class="btn btn-save" id="saveImgBtn">导出图片</button>
+    <button class="btn btn-record" id="recordBtn">🔴 开始录屏</button>
+</div>
+
+<div id="canvas-wrapper">
+    <canvas id="mainCanvas"></canvas>
+</div>
+
+<script>
+    const canvas = document.getElementById('mainCanvas');
+    const ctx = canvas.getContext('2d');
+    const brushCursor = document.getElementById('brush-cursor');
+    const recordBtn = document.getElementById('recordBtn');
+    const ratioSelect = document.getElementById('ratioSelect');
+
+    let currentRatioValue = ratioSelect.value; // 记录当前比例，用于取消切换时恢复
+
+    // 1. 动态计算并设置画板尺寸
+    function initCanvas() {
+        const padding = 60; // 屏幕左右留白
+        const topPadding = 120; // 顶部工具栏留白
+        
+        const maxWidth = window.innerWidth - padding;
+        const maxHeight = window.innerHeight - topPadding;
+
+        // 解析下拉框的比例 (例如 "16/9" -> ratio = 1.777)
+        const [wRatio, hRatio] = ratioSelect.value.split('/').map(Number);
+        const targetRatio = wRatio / hRatio;
+
+        let width = maxWidth;
+        let height = width / targetRatio;
+
+        // 如果算出来的高度超出了屏幕可用高度，则以高度为基准重新计算宽度
+        if (height > maxHeight) {
+            height = maxHeight;
+            width = height * targetRatio;
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+
+        // 重置背景色为白色
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+    }
+
+    // 初始化运行一次
+    initCanvas();
+
+    // 监听比例切换事件
+    ratioSelect.addEventListener('change', (e) => {
+        // 只有当用户没有在录屏时才能切换比例
+        if (mediaRecorder && mediaRecorder.state === "recording") {
+            alert("录屏过程中无法切换画板比例！请先停止录屏。");
+            e.target.value = currentRatioValue; // 恢复下拉框选项
+            return;
+        }
+
+        if (confirm("切换比例将会清空当前画板上的所有内容，确定要切换吗？")) {
+            currentRatioValue = e.target.value;
+            initCanvas();
+        } else {
+            // 用户点击取消，恢复下拉框为之前的比例
+            e.target.value = currentRatioValue;
+        }
+    });
+
+    // 2. 绘图逻辑
+    let drawing = false;
+    const getPos = (e) => {
+        const rect = canvas.getBoundingClientRect();
+        return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+    };
+
+    canvas.onmousedown = (e) => {
+        drawing = true;
+        const pos = getPos(e);
+        ctx.beginPath();
+        ctx.moveTo(pos.x, pos.y);
+    };
+
+    canvas.onmousemove = (e) => {
+        // 更新隐形画笔的跟随光标
+        brushCursor.style.display = 'block';
+        brushCursor.style.left = e.clientX + 'px';
+        brushCursor.style.top = e.clientY + 'px';
+        const color = document.getElementById('colorPicker').value;
+        const width = document.getElementById('lineWidth').value;
+        
+        brushCursor.style.backgroundColor = color;
+        // 让光标圆点稍微比实际线条大一点点，方便观察
+        brushCursor.style.width = width + 'px';
+        brushCursor.style.height = width + 'px';
+        brushCursor.style.transform = `translate(-50%, -50%)`; // 居中光标
+
+        if (!drawing) return;
+        const pos = getPos(e);
+        ctx.lineTo(pos.x, pos.y);
+        ctx.strokeStyle = color;
+        ctx.lineWidth = width;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round'; // 让线条转折处更圆滑
+        ctx.stroke();
+    };
+
+    window.onmouseup = () => drawing = false;
+    canvas.onmouseleave = () => {
+        drawing = false;
+        brushCursor.style.display = 'none';
+    };
+
+    // 3. 录屏逻辑
+    let mediaRecorder;
+    let recordedChunks = [];
+
+    recordBtn.onclick = () => {
+        if (mediaRecorder && mediaRecorder.state === "recording") {
+            mediaRecorder.stop();
+            recordBtn.textContent = "🔴 开始录屏";
+            recordBtn.classList.remove('recording');
+            ratioSelect.disabled = false; // 录制结束，允许切换比例
+        } else {
+            startRecording();
+        }
+    };
+
+    function startRecording() {
+        recordedChunks = [];
+        // 捕获画布流 (每秒 30 帧)
+        const stream = canvas.captureStream(30);
+        mediaRecorder = new MediaRecorder(stream, {
+            mimeType: 'video/webm;codecs=vp9'
+        });
+
+        mediaRecorder.ondataavailable = (e) => {
+            if (e.data.size > 0) recordedChunks.push(e.data);
+        };
+
+        mediaRecorder.onstop = () => {
+            const blob = new Blob(recordedChunks, { type: 'video/webm' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `canvas-record-${currentRatioValue.replace('/','-')}-${Date.now()}.webm`;
+            a.click();
+        };
+
+        mediaRecorder.start();
+        recordBtn.textContent = "⏹ 停止录制";
+        recordBtn.classList.add('recording');
+        ratioSelect.disabled = true; // 录制期间禁止切换比例，防止视频崩溃
+    }
+
+    // 4. 图片导出与清空
+    document.getElementById('saveImgBtn').onclick = () => {
+        const link = document.createElement('a');
+        link.download = `canvas-drawing-${Date.now()}.png`;
+        link.href = canvas.toDataURL();
+        link.click();
+    };
+
+    document.getElementById('clearBtn').onclick = () => {
+        if(confirm('确定要清空画板吗？')) {
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+        }
+    };
+</script>
+
+</body>
+</html>

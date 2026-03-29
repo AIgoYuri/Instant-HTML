@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>专业颜色转换器 - Color Pro</title>
+    <style>
+        :root {
+            --bg: #f0f2f5;
+            --card: #ffffff;
+            --text-main: #1a1a1a;
+            --accent: #007aff;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: var(--bg);
+            color: var(--text-main);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            background: var(--card);
+            width: 100%;
+            max-width: 500px;
+            padding: 2rem;
+            border-radius: 24px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.05);
+        }
+
+        h1 { font-size: 1.5rem; margin-bottom: 2rem; text-align: center; font-weight: 700; }
+
+        /* 颜色预览区 */
+        .preview-box {
+            width: 100%;
+            height: 120px;
+            border-radius: 16px;
+            margin-bottom: 2rem;
+            box-shadow: inset 0 0 0 1px rgba(0,0,0,0.1);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: background-color 0.2s ease;
+            position: relative;
+        }
+
+        /* 吸管工具按钮 */
+        #picker-btn {
+            background: rgba(255,255,255,0.8);
+            backdrop-filter: blur(5px);
+            border: none;
+            padding: 10px 20px;
+            border-radius: 12px;
+            cursor: pointer;
+            font-weight: 600;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            transition: transform 0.1s;
+        }
+        #picker-btn:active { transform: scale(0.95); }
+
+        /* 输入组 */
+        .input-section { margin-bottom: 1.5rem; }
+        .row { display: flex; gap: 10px; margin-bottom: 1rem; }
+        .col { flex: 1; }
+        
+        label { display: block; font-size: 0.8rem; color: #666; margin-bottom: 6px; font-weight: 600; }
+        
+        .input-field {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #edf0f2;
+            border-radius: 10px;
+            font-family: 'Monaco', 'Consolas', monospace;
+            font-size: 1rem;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        .input-field:focus { border-color: var(--accent); }
+
+        /* 复制按钮 */
+        .copy-btn {
+            background: #f0f2f5;
+            border: none;
+            padding: 8px;
+            border-radius: 6px;
+            cursor: pointer;
+            margin-left: 5px;
+            font-size: 0.8rem;
+        }
+        .copy-btn:hover { background: #e2e5e9; }
+
+        .flex-center { display: flex; align-items: center; }
+
+        /* Toast 提示 */
+        #toast {
+            position: fixed;
+            bottom: 30px;
+            background: #333;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            opacity: 0;
+            transition: opacity 0.3s;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Color Pro 转换器</h1>
+
+    <div id="preview" class="preview-box" style="background-color: #007aff;">
+        <button id="picker-btn">🔍 屏幕取色</button>
+    </div>
+
+    <div class="input-section">
+        <label>HEX (十六进制)</label>
+        <div class="flex-center">
+            <input type="text" id="hex-input" class="input-field" value="#007AFF" spellcheck="false">
+            <button class="copy-btn" onclick="copyValue('hex-input')">复制</button>
+        </div>
+    </div>
+
+    <div class="input-section">
+        <label>RGB (红, 绿, 蓝)</label>
+        <div class="row">
+            <div class="col">
+                <input type="number" id="r-val" class="input-field" min="0" max="255" value="0">
+            </div>
+            <div class="col">
+                <input type="number" id="g-val" class="input-field" min="0" max="255" value="122">
+            </div>
+            <div class="col">
+                <input type="number" id="b-val" class="input-field" min="0" max="255" value="255">
+            </div>
+        </div>
+        <div class="flex-center">
+            <input type="text" id="rgb-full" class="input-field" value="rgb(0, 122, 255)" readonly>
+            <button class="copy-btn" onclick="copyValue('rgb-full')">复制</button>
+        </div>
+    </div>
+</div>
+
+<div id="toast">已复制到剪贴板</div>
+
+<script>
+    const hexInput = document.getElementById('hex-input');
+    const rInput = document.getElementById('r-val');
+    const gInput = document.getElementById('g-val');
+    const bInput = document.getElementById('b-val');
+    const rgbFull = document.getElementById('rgb-full');
+    const preview = document.getElementById('preview');
+    const pickerBtn = document.getElementById('picker-btn');
+    const toast = document.getElementById('toast');
+
+    // 1. HEX 转 RGB 逻辑
+    function hexToRgb(hex) {
+        hex = hex.replace(/^#/, '');
+        if (hex.length === 3) {
+            hex = hex.split('').map(char => char + char).join('');
+        }
+        const bigint = parseInt(hex, 16);
+        return {
+            r: (bigint >> 16) & 255,
+            g: (bigint >> 8) & 255,
+            b: bigint & 255
+        };
+    }
+
+    // 2. RGB 转 HEX 逻辑
+    function rgbToHex(r, g, b) {
+        return "#" + [r, g, b].map(x => {
+            const hex = parseInt(x).toString(16);
+            return hex.length === 1 ? "0" + hex : hex;
+        }).join("").toUpperCase();
+    }
+
+    // 3. 更新所有界面元素
+    function updateAll(source) {
+        let r, g, b, hex;
+
+        if (source === 'hex') {
+            hex = hexInput.value;
+            if (/^#?[0-9A-Fa-f]{6}$|^#?[0-9A-Fa-f]{3}$/.test(hex)) {
+                const rgb = hexToRgb(hex);
+                r = rgb.r; g = rgb.g; b = rgb.b;
+                if (!hex.startsWith('#')) hex = '#' + hex;
+                rInput.value = r; gInput.value = g; bInput.value = b;
+            } else return;
+        } else {
+            r = rInput.value || 0;
+            g = gInput.value || 0;
+            b = bInput.value || 0;
+            hex = rgbToHex(r, g, b);
+            hexInput.value = hex;
+        }
+
+        const rgbStr = `rgb(${r}, ${g}, ${b})`;
+        rgbFull.value = rgbStr;
+        preview.style.backgroundColor = hex;
+    }
+
+    // 4. 吸管工具取色 (API 调用)
+    if (!window.EyeDropper) {
+        pickerBtn.style.display = 'none'; // 如果浏览器不支持则隐藏
+    }
+
+    pickerBtn.addEventListener('click', async () => {
+        try {
+            const eyeDropper = new EyeDropper();
+            const { sRGBHex } = await eyeDropper.open();
+            hexInput.value = sRGBHex.toUpperCase();
+            updateAll('hex');
+        } catch (e) {
+            console.log('用户取消了取色');
+        }
+    });
+
+    // 5. 事件监听
+    hexInput.addEventListener('input', () => updateAll('hex'));
+    [rInput, gInput, bInput].forEach(el => {
+        el.addEventListener('input', () => updateAll('rgb'));
+    });
+
+    // 6. 复制功能
+    function copyValue(id) {
+        const input = document.getElementById(id);
+        navigator.clipboard.writeText(input.value);
+        
+        // 显示 Toast
+        toast.style.opacity = '1';
+        setTimeout(() => toast.style.opacity = '0', 2000);
+    }
+</script>
+
+</body>
+</html>

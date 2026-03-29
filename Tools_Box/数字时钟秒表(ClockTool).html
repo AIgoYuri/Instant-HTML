@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>极简全屏时钟 & 秒表</title>
+    <style>
+        :root {
+            --bg-color: #000000;
+            --text-color: #ffffff;
+            --accent-color: #3b82f6;
+            --muted-color: #4b5563;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: 'Courier New', Courier, monospace; /* 使用等宽字体防止数字抖动 */
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            user-select: none;
+        }
+
+        /* 顶部导航切换 */
+        nav {
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            z-index: 10;
+        }
+
+        .nav-btn {
+            background: none;
+            border: 1px solid var(--muted-color);
+            color: var(--muted-color);
+            padding: 8px 16px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: all 0.3s;
+        }
+
+        .nav-btn.active {
+            border-color: var(--accent-color);
+            color: var(--accent-color);
+            background: rgba(59, 130, 246, 0.1);
+        }
+
+        /* 内容区容器 */
+        .content-wrapper {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+        }
+
+        .view {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            width: 100%;
+        }
+
+        .view.active { display: flex; }
+
+        /* 时钟样式 */
+        #clock-display {
+            font-size: 20vw;
+            font-weight: bold;
+        }
+
+        #date-display {
+            font-size: 2vw;
+            color: var(--muted-color);
+            margin-top: -20px;
+        }
+
+        /* 秒表样式 */
+        #stopwatch-display {
+            font-size: 15vw;
+            font-weight: bold;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .controls {
+            margin-top: 2rem;
+            display: flex;
+            gap: 20px;
+        }
+
+        .btn {
+            padding: 15px 40px;
+            border-radius: 30px;
+            border: none;
+            font-size: 1.2rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+
+        .btn-start { background-color: #10b981; color: white; }
+        .btn-stop { background-color: #ef4444; color: white; }
+        .btn-lap { background-color: #6366f1; color: white; }
+        .btn-reset { background-color: #6b7280; color: white; }
+        .btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+        /* 计次列表 */
+        #laps-list {
+            margin-top: 2rem;
+            width: 300px;
+            max-height: 200px;
+            overflow-y: auto;
+            border-top: 1px solid #1f2937;
+            padding-top: 10px;
+        }
+
+        .lap-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #1f2937;
+            color: var(--muted-color);
+            font-size: 1rem;
+        }
+
+        /* 自定义滚动条 */
+        #laps-list::-webkit-scrollbar { width: 5px; }
+        #laps-list::-webkit-scrollbar-thumb { background: var(--muted-color); border-radius: 10px; }
+    </style>
+</head>
+<body>
+
+<nav>
+    <button class="nav-btn active" onclick="switchView('clock')">数字时钟</button>
+    <button class="nav-btn" onclick="switchView('stopwatch')">秒表工具</button>
+</nav>
+
+<div class="content-wrapper">
+    <div id="view-clock" class="view active">
+        <div id="clock-display">00:00:00</div>
+        <div id="date-display">2026年03月28日 星期六</div>
+    </div>
+
+    <div id="view-stopwatch" class="view">
+        <div id="stopwatch-display">00:00.00</div>
+        <div class="controls">
+            <button id="sw-start" class="btn btn-start" onclick="startStopwatch()">开始</button>
+            <button id="sw-lap" class="btn btn-lap" onclick="recordLap()" disabled>计次</button>
+            <button id="sw-reset" class="btn btn-reset" onclick="resetStopwatch()">重置</button>
+        </div>
+        <div id="laps-list"></div>
+    </div>
+</div>
+
+<script>
+    // --- 视图切换逻辑 ---
+    function switchView(viewName) {
+        document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+        document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+        
+        document.getElementById(`view-${viewName}`).classList.add('active');
+        event.target.classList.add('active');
+    }
+
+    // --- 时钟逻辑 ---
+    function updateClock() {
+        const now = new Date();
+        const h = String(now.getHours()).padStart(2, '0');
+        const m = String(now.getMinutes()).padStart(2, '0');
+        const s = String(now.getSeconds()).padStart(2, '0');
+        
+        document.getElementById('clock-display').textContent = `${h}:${m}:${s}`;
+        
+        const options = { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' };
+        document.getElementById('date-display').textContent = now.toLocaleDateString('zh-CN', options);
+    }
+    setInterval(updateClock, 1000);
+    updateClock();
+
+    // --- 秒表逻辑 ---
+    let startTime = 0;
+    let elapsedTime = 0;
+    let timerInterval = null;
+    let laps = [];
+
+    function formatTime(ms) {
+        const totalSeconds = Math.floor(ms / 1000);
+        const minutes = Math.floor(totalSeconds / 60);
+        const seconds = totalSeconds % 60;
+        const centiseconds = Math.floor((ms % 1000) / 10);
+        
+        return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}.${String(centiseconds).padStart(2, '0')}`;
+    }
+
+    function startStopwatch() {
+        const startBtn = document.getElementById('sw-start');
+        const lapBtn = document.getElementById('sw-lap');
+
+        if (!timerInterval) {
+            // 开始运行
+            startTime = Date.now() - elapsedTime;
+            timerInterval = setInterval(() => {
+                elapsedTime = Date.now() - startTime;
+                document.getElementById('stopwatch-display').textContent = formatTime(elapsedTime);
+            }, 10);
+            
+            startBtn.textContent = '暂停';
+            startBtn.className = 'btn btn-stop';
+            lapBtn.disabled = false;
+        } else {
+            // 暂停
+            clearInterval(timerInterval);
+            timerInterval = null;
+            startBtn.textContent = '继续';
+            startBtn.className = 'btn btn-start';
+        }
+    }
+
+    function resetStopwatch() {
+        clearInterval(timerInterval);
+        timerInterval = null;
+        elapsedTime = 0;
+        laps = [];
+        document.getElementById('stopwatch-display').textContent = '00:00.00';
+        document.getElementById('laps-list').innerHTML = '';
+        
+        const startBtn = document.getElementById('sw-start');
+        startBtn.textContent = '开始';
+        startBtn.className = 'btn btn-start';
+        document.getElementById('sw-lap').disabled = true;
+    }
+
+    function recordLap() {
+        laps.unshift(elapsedTime); // 新计次放前面
+        const list = document.getElementById('laps-list');
+        const item = document.createElement('div');
+        item.className = 'lap-item';
+        item.innerHTML = `<span>计次 ${laps.length}</span><span>${formatTime(elapsedTime)}</span>`;
+        list.prepend(item);
+    }
+</script>
+
+</body>
+</html>

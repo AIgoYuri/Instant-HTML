@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>键盘键值探测器 - Keycode Finder</title>
+    <style>
+        :root {
+            --bg: #0f172a;
+            --card-bg: #1e293b;
+            --text-main: #f8fafc;
+            --text-dim: #94a3b8;
+            --accent: #38bdf8;
+            --highlight: #22c55e;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: 'Fira Code', 'Cascadia Code', Consolas, monospace;
+            background-color: var(--bg);
+            color: var(--text-main);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+        }
+
+        /* 初始提示状态 */
+        .welcome-msg {
+            font-size: 1.5rem;
+            color: var(--text-dim);
+            text-align: center;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        /* 主显示区 */
+        #display-container {
+            display: none; /* 初始隐藏 */
+            flex-direction: column;
+            align-items: center;
+            width: 100%;
+            max-width: 800px;
+        }
+
+        .main-key {
+            font-size: 8rem;
+            font-weight: bold;
+            color: var(--accent);
+            margin-bottom: 2rem;
+            text-shadow: 0 0 30px rgba(56, 189, 248, 0.3);
+        }
+
+        /* 详情网格 */
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+            width: 90%;
+        }
+
+        .info-card {
+            background: var(--card-bg);
+            padding: 20px;
+            border-radius: 12px;
+            text-align: center;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .info-label {
+            display: block;
+            font-size: 0.8rem;
+            color: var(--text-dim);
+            margin-bottom: 10px;
+            text-transform: uppercase;
+        }
+
+        .info-value {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: var(--highlight);
+        }
+
+        /* 底部历史记录 */
+        .history {
+            position: fixed;
+            bottom: 40px;
+            display: flex;
+            gap: 10px;
+            color: var(--text-dim);
+            font-size: 0.9rem;
+        }
+
+        .history-item {
+            background: rgba(255,255,255,0.05);
+            padding: 4px 10px;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="welcome" class="welcome-msg">
+        请按下键盘上的任意键开始探测...
+    </div>
+
+    <div id="display-container">
+        <div id="key-name" class="main-key">-</div>
+        
+        <div class="info-grid">
+            <div class="info-card">
+                <span class="info-label">event.key</span>
+                <span id="val-key" class="info-value">-</span>
+            </div>
+            <div class="info-card">
+                <span class="info-label">event.code</span>
+                <span id="val-code" class="info-value">-</span>
+            </div>
+            <div class="info-card">
+                <span class="info-label">event.keyCode</span>
+                <span id="val-keycode" class="info-value">-</span>
+            </div>
+        </div>
+
+        <div id="history-bar" class="history">
+            </div>
+    </div>
+
+<script>
+    const welcome = document.getElementById('welcome');
+    const container = document.getElementById('display-container');
+    const keyName = document.getElementById('key-name');
+    const valKey = document.getElementById('val-key');
+    const valCode = document.getElementById('val-code');
+    const valKeycode = document.getElementById('val-keycode');
+    const historyBar = document.getElementById('history-bar');
+
+    let history = [];
+
+    window.addEventListener('keydown', (e) => {
+        // 阻止默认行为（例如按下 Tab 键切换焦点，或按下空格滚动页面）
+        e.preventDefault();
+
+        // 切换 UI 显示
+        welcome.style.display = 'none';
+        container.style.display = 'flex';
+
+        // 1. 处理主显示逻辑
+        // 如果是空格键，显示 "Space" 字符而不是空白
+        const displayKey = e.key === ' ' ? 'Space' : e.key;
+        keyName.textContent = displayKey;
+
+        // 2. 填充详细数值
+        valKey.textContent = e.key;
+        valCode.textContent = e.code;
+        valKeycode.textContent = e.keyCode;
+
+        // 3. 更新历史记录（保留最近 5 个）
+        updateHistory(displayKey);
+    });
+
+    function updateHistory(key) {
+        history.unshift(key);
+        if (history.length > 5) history.pop();
+
+        historyBar.innerHTML = history.map(item => `
+            <span class="history-item">${item}</span>
+        `).join('');
+    }
+</script>
+
+</body>
+</html>

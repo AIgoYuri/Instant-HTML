@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pro Pomodoro - 生产力工作站</title>
+    <style>
+        :root {
+            --primary: #6c5ce7;
+            --work: #ff7675;
+            --short-break: #55efc4;
+            --long-break: #0984e3;
+            --bg: #f0f2f5;
+            --card: #ffffff;
+            --text: #2d3436;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            display: flex;
+            justify-content: center;
+            padding: 40px 20px;
+            min-height: 100vh;
+            transition: background 0.3s ease;
+        }
+
+        .layout {
+            display: grid;
+            grid-template-columns: 420px 350px;
+            gap: 2rem;
+            max-width: 850px;
+            width: 100%;
+        }
+
+        @media (max-width: 768px) {
+            .layout { grid-template-columns: 1fr; }
+        }
+
+        .card {
+            background: var(--card);
+            border-radius: 20px;
+            padding: 2rem;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.05);
+            margin-bottom: 1rem;
+        }
+
+        /* 顶部模式切换 */
+        .mode-selector {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 1.5rem;
+            background: #f1f2f6;
+            padding: 5px;
+            border-radius: 12px;
+        }
+
+        .mode-btn {
+            flex: 1;
+            padding: 8px;
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            border-radius: 8px;
+            font-weight: 600;
+            color: #666;
+            transition: 0.3s;
+        }
+
+        .mode-btn.active {
+            background: white;
+            color: var(--text);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        }
+
+        /* 计时器显示 */
+        .timer-display {
+            font-size: 5.5rem;
+            font-weight: 800;
+            text-align: center;
+            margin: 1rem 0;
+            font-variant-numeric: tabular-nums;
+            letter-spacing: -2px;
+        }
+
+        /* 控制按钮 */
+        .controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 1.5rem;
+        }
+
+        .btn {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            border-radius: 12px;
+            font-weight: bold;
+            font-size: 1.1rem;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+
+        .btn:active { transform: scale(0.95); }
+        .btn-start { background: var(--primary); color: white; }
+        .btn-reset { background: #eee; color: #666; }
+
+        /* --- 新增：快捷预设按钮样式 --- */
+        .quick-presets {
+            margin-bottom: 1.5rem;
+            padding-bottom: 1.5rem;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .preset-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            justify-content: center;
+            margin-top: 10px;
+        }
+
+        .preset-btn {
+            padding: 6px 12px;
+            border: 1px solid #e0e0e0;
+            background: #fff;
+            color: #555;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .preset-btn:hover {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+            transform: translateY(-2px);
+        }
+
+        /* 设置区域 */
+        .settings-panel {
+            background: #f8f9fa;
+            padding: 1rem;
+            border-radius: 12px;
+            border: 1px solid #eee;
+        }
+
+        .settings-title {
+            font-size: 0.85rem;
+            color: #888;
+            margin-bottom: 0.8rem;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+
+        .input-group {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 0.5rem;
+            font-size: 0.9rem;
+        }
+
+        .input-group input {
+            width: 60px;
+            padding: 5px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            text-align: center;
+            font-weight: bold;
+        }
+
+        .btn-apply {
+            width: 100%;
+            padding: 8px;
+            margin-top: 10px;
+            background: #2d3436;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: 0.2s;
+        }
+        .btn-apply:hover { background: #000; }
+
+        /* 任务与统计 */
+        .task-list { list-style: none; margin-top: 1rem; }
+        .task-item { display: flex; padding: 8px 0; border-bottom: 1px solid #eee; }
+        .stats { font-size: 0.9rem; color: #666; display: flex; justify-content: space-between; }
+    </style>
+</head>
+<body>
+
+<div class="layout">
+    <div class="card">
+        <div class="mode-selector">
+            <button class="mode-btn active" onclick="setMode('work')">专注</button>
+            <button class="mode-btn" onclick="setMode('short')">短假</button>
+            <button class="mode-btn" onclick="setMode('long')">长假</button>
+        </div>
+        
+        <div class="timer-display" id="timer">25:00</div>
+        
+        <div class="controls">
+            <button class="btn btn-start" id="startBtn">开始</button>
+            <button class="btn btn-reset" id="resetBtn">重置</button>
+        </div>
+
+        <div class="quick-presets">
+            <div class="settings-title" style="text-align: center;">⚡ 一键快捷预设</div>
+            <div class="preset-grid">
+                <button class="preset-btn" onclick="quickSet(5)">5 分钟</button>
+                <button class="preset-btn" onclick="quickSet(15)">15 分钟</button>
+                <button class="preset-btn" onclick="quickSet(25)">25 分钟</button>
+                <button class="preset-btn" onclick="quickSet(30)">30 分钟</button>
+                <button class="preset-btn" onclick="quickSet(45)">45 分钟</button>
+                <button class="preset-btn" onclick="quickSet(60)">60 分钟</button>
+            </div>
+        </div>
+
+        <div class="settings-panel">
+            <div class="settings-title">⚙️ 默认时长设置 (微调)</div>
+            <div class="input-group">
+                <label>专注阶段</label>
+                <div><input type="number" id="workInput" value="25" min="1" max="120"> 分钟</div>
+            </div>
+            <div class="input-group">
+                <label>短休阶段</label>
+                <div><input type="number" id="shortInput" value="5" min="1" max="60"> 分钟</div>
+            </div>
+            <div class="input-group">
+                <label>长休阶段</label>
+                <div><input type="number" id="longInput" value="15" min="1" max="60"> 分钟</div>
+            </div>
+            <button class="btn-apply" onclick="applySettings()">保存为默认</button>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="settings-title">📊 今日数据</div>
+        <div class="stats">
+            <span>完成番茄数: <strong id="pomoCount">0</strong> 个</span>
+            <span>累计专注: <strong id="totalMins">0</strong> 分钟</span>
+        </div>
+        
+        <div class="settings-title" style="margin-top: 2rem;">📝 任务备注</div>
+        <div style="display:flex; gap:5px;">
+            <input type="text" id="taskInput" placeholder="输入任务..." style="flex:1; padding:8px; border:1px solid #ccc; border-radius:6px;">
+            <button onclick="addTask()" style="padding:8px 15px; border:none; background:var(--primary); color:white; border-radius:6px; cursor:pointer;">添加</button>
+        </div>
+        <ul class="task-list" id="taskList"></ul>
+    </div>
+</div>
+
+<audio id="alarm">
+    <source src="https://actions.google.com/sounds/v1/alarms/beep_short.ogg" type="audio/ogg">
+</audio>
+
+<script>
+    // --- 核心变量 ---
+    let timeLeft = 25 * 60; 
+    let timerId = null;
+    let currentMode = 'work'; 
+    let stats = { count: 0, minutes: 0 };
+    let tasks = [];
+
+    // --- DOM 元素 ---
+    const timerDisplay = document.getElementById('timer');
+    const startBtn = document.getElementById('startBtn');
+    const resetBtn = document.getElementById('resetBtn');
+    const alarm = document.getElementById('alarm');
+
+    // --- 初始化与显示 ---
+    function updateDisplay() {
+        const m = Math.floor(timeLeft / 60);
+        const s = timeLeft % 60;
+        timerDisplay.innerText = `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+        document.title = `${timerDisplay.innerText} - 番茄钟`;
+    }
+
+    // --- 模式切换 ---
+    function setMode(mode) {
+        currentMode = mode;
+        clearInterval(timerId); 
+        timerId = null;
+        startBtn.innerText = "开始";
+        
+        document.querySelectorAll('.mode-btn').forEach(btn => btn.classList.remove('active'));
+        event.target.classList.add('active');
+
+        const colors = { work: '#ff7675', short: '#55efc4', long: '#0984e3' };
+        document.documentElement.style.setProperty('--primary', colors[mode]);
+        
+        const mins = parseInt(document.getElementById(`${mode}Input`).value) || 25;
+        timeLeft = mins * 60; 
+        
+        updateDisplay();
+    }
+
+    // --- 新增：一键快捷预设功能 ---
+    function quickSet(minutes) {
+        // 1. 停止当前计时
+        clearInterval(timerId);
+        timerId = null;
+        startBtn.innerText = "开始";
+
+        // 2. 更新当前模式对应的输入框，保持底层数据一致
+        document.getElementById(`${currentMode}Input`).value = minutes;
+
+        // 3. 计算秒数并更新面板
+        timeLeft = minutes * 60;
+        updateDisplay();
+    }
+
+    // --- 应用微调设置 ---
+    function applySettings() {
+        const workVal = Math.max(1, parseInt(document.getElementById('workInput').value) || 25);
+        const shortVal = Math.max(1, parseInt(document.getElementById('shortInput').value) || 5);
+        const longVal = Math.max(1, parseInt(document.getElementById('longInput').value) || 15);
+        
+        document.getElementById('workInput').value = workVal;
+        document.getElementById('shortInput').value = shortVal;
+        document.getElementById('longInput').value = longVal;
+
+        const currentMins = document.getElementById(`${currentMode}Input`).value;
+        timeLeft = currentMins * 60;
+        
+        clearInterval(timerId);
+        timerId = null;
+        startBtn.innerText = "开始";
+        updateDisplay();
+    }
+
+    // --- 计时器控制 ---
+    startBtn.onclick = () => {
+        if (timerId) {
+            clearInterval(timerId);
+            timerId = null;
+            startBtn.innerText = "继续";
+        } else {
+            startBtn.innerText = "暂停";
+            timerId = setInterval(() => {
+                timeLeft--;
+                updateDisplay();
+                if (timeLeft <= 0) {
+                    clearInterval(timerId);
+                    timerId = null;
+                    completeSession();
+                }
+            }, 1000); 
+        }
+    };
+
+    resetBtn.onclick = () => {
+        clearInterval(timerId);
+        timerId = null;
+        const currentMins = document.getElementById(`${currentMode}Input`).value;
+        timeLeft = currentMins * 60;
+        startBtn.innerText = "开始";
+        updateDisplay();
+    };
+
+    // --- 完成时段 ---
+    function completeSession() {
+        alarm.play().catch(() => console.log("需允许音频播放"));
+        if (currentMode === 'work') {
+            stats.count++;
+            // 记录当前输入框里的分钟数到总时长里
+            stats.minutes += parseInt(document.getElementById('workInput').value);
+            document.getElementById('pomoCount').innerText = stats.count;
+            document.getElementById('totalMins').innerText = stats.minutes;
+        }
+        alert("倒计时结束！");
+        resetBtn.click();
+    }
+
+    // --- 任务功能 ---
+    function addTask() {
+        const input = document.getElementById('taskInput');
+        if (!input.value) return;
+        tasks.push(input.value);
+        input.value = '';
+        renderTasks();
+    }
+
+    function renderTasks() {
+        const list = document.getElementById('taskList');
+        list.innerHTML = tasks.map((t, index) => `
+            <li class="task-item">
+                <span style="flex:1;">- ${t}</span>
+                <button onclick="tasks.splice(${index}, 1); renderTasks()" style="background:none; border:none; color:red; cursor:pointer;">删除</button>
+            </li>
+        `).join('');
+    }
+
+    // 页面加载完毕初始化
+    updateDisplay();
+</script>
+
+</body>
+</html>

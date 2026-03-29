@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Markdown 实时预览器</title>
+    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/github-markdown-css/5.2.0/github-markdown.min.css">
+    
+    <style>
+        /* 基础样式复位 */
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            background-color: #f6f8fa;
+        }
+
+        /* 顶部标题栏 */
+        header {
+            background-color: #24292f;
+            color: white;
+            padding: 1rem 2rem;
+            text-align: center;
+            font-size: 1.2rem;
+            font-weight: bold;
+        }
+
+        /* 主容器：左右布局 */
+        .container {
+            display: flex;
+            flex: 1; /* 填充剩余高度 */
+            overflow: hidden; /* 防止主容器出现滚动条 */
+        }
+
+        /* 左侧输入区 */
+        #editor {
+            flex: 1;
+            height: 100%;
+            padding: 20px;
+            font-family: 'Fira Code', 'Cascadia Code', Consolas, monospace;
+            font-size: 16px;
+            line-height: 1.6;
+            border: none;
+            border-right: 1px solid #d0d7de;
+            resize: none; /* 禁止用户手动调整大小 */
+            outline: none;
+            background-color: #ffffff;
+            color: #24292f;
+        }
+
+        /* 右侧预览区 */
+        #preview-container {
+            flex: 1;
+            height: 100%;
+            padding: 20px;
+            overflow-y: auto; /* 只有内容溢出时才显示滚动条 */
+            background-color: #ffffff;
+        }
+
+        /* 给预览内容添加 padding 适配 github-markdown 样式 */
+        .markdown-body {
+            box-sizing: border-box;
+            min-width: 200px;
+            max-width: 980px;
+            margin: 0 auto;
+        }
+
+        /* 移动端适配：如果是小屏幕，改为上下布局 */
+        @media (max-width: 768px) {
+            .container {
+                flex-direction: column;
+            }
+            #editor {
+                border-right: none;
+                border-bottom: 1px solid #d0d7de;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<header>Markdown 实时预览器</header>
+
+<div class="container">
+    <textarea id="editor" placeholder="在此输入 Markdown 语法..."></textarea>
+    
+    <div id="preview-container">
+        <div id="preview" class="markdown-body"></div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+
+<script>
+    const editor = document.getElementById('editor');
+    const preview = document.getElementById('preview');
+
+    // 默认展示的内容
+    const defaultText = `# 欢迎使用 Markdown 预览器 👋
+
+在这里输入 Markdown 语法，右侧会**实时**渲染。
+
+## 常用语法示例
+1. **加粗** 与 *斜体*
+2. [百度一下](https://www.baidu.com)
+3. 代码块：
+\`\`\`javascript
+function helloWorld() {
+  console.log("Hello, Markdown!");
+}
+\`\`\`
+> 这是一条引用信息。
+
+![示例图片](https://via.placeholder.com/150)
+`;
+
+    // 初始化内容
+    editor.value = defaultText;
+    updatePreview();
+
+    // 监听输入事件
+    editor.addEventListener('input', updatePreview);
+
+    function updatePreview() {
+        const rawValue = editor.value;
+        // 使用 marked 解析 Markdown 并赋值给预览区域
+        preview.innerHTML = marked.parse(rawValue);
+    }
+</script>
+
+</body>
+</html>
